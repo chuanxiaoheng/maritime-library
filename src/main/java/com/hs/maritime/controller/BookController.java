@@ -56,9 +56,51 @@ public class BookController {
                 .eq(StrUtil.isNotBlank(bookQueryDTO.getAuthor()),"author",bookQueryDTO.getAuthor())
                 .eq(StrUtil.isNotBlank(bookQueryDTO.getIsbn()),"isbn",bookQueryDTO.getIsbn())
                 .eq(StrUtil.isNotBlank(bookQueryDTO.getPublisher()),"publisher",bookQueryDTO.getPublisher())
-                .eq(bookQueryDTO.getCategoryId() != null,"category_id",bookQueryDTO.getCategoryId())
+                .eq(bookQueryDTO.getCategory() != null,"category_id",bookQueryDTO.getCategory())
                 .eq(bookQueryDTO.getStatus() != null,"status",bookQueryDTO.getStatus())
                 .orderByDesc("create_time");
+        // 根据条件，查询图书分页数据
+        IPage<Book> bookPage =
+                bookService.page(new Page<>(pageNum, pageSize), queryWrapper);
+
+        // 自定义sql语句，图书表关联数据
+        // 查询分类数据，程序内处理
+        Map<Integer,String> categoryMap = categoryService.list()
+                .stream().collect(Collectors.toMap(Category::getId,Category::getName));
+        // 转成VO
+        IPage<BookVO> bookVOPage = bookPage.convert(book -> {
+            BookVO bookVO = new BookVO();
+            BeanUtils.copyProperties(book, bookVO);
+            bookVO.setCategoryName(categoryMap.get(bookVO.getCategoryId()));
+            return bookVO;
+        });
+        return Result.success(PageResult.of(bookVOPage));
+    }
+
+    /**
+     * 根据条件，获取图书查阅列表
+     * */
+    @GetMapping("/displayPage")
+    public Result<?> displayPage(@RequestParam(defaultValue = "1")Integer pageNum,
+                              @RequestParam(defaultValue = "10")Integer pageSize,
+                              BookQueryDTO bookQueryDTO){
+
+
+        log.info("页码：{}",pageNum);
+        log.info("每页展示的数量：{}",pageSize);
+        // 查询条件
+        QueryWrapper<Book> queryWrapper = Wrappers.<Book>query()
+                .likeRight(StrUtil.isNotBlank(bookQueryDTO.getKeywords()),"title",bookQueryDTO.getKeywords().trim())
+                .or()
+                .likeRight(StrUtil.isNotBlank(bookQueryDTO.getKeywords()),"author",bookQueryDTO.getKeywords().trim())
+                .or()
+                .likeRight(StrUtil.isNotBlank(bookQueryDTO.getKeywords()),"isbn",bookQueryDTO.getKeywords().trim())
+                .eq(bookQueryDTO.getCategory() != null,"category_id",bookQueryDTO.getCategory())
+                .eq(bookQueryDTO.getStatus() != null,"status",bookQueryDTO.getStatus())
+                .gt(StrUtil.isNotBlank(bookQueryDTO.getBorrowStatus()) && StrUtil.equals("available",bookQueryDTO.getBorrowStatus()),"available_copies",0)
+                .eq(StrUtil.isNotBlank(bookQueryDTO.getBorrowStatus()) && StrUtil.equals("unavailable", bookQueryDTO.getBorrowStatus()), "available_copies", 0)
+                        .orderByDesc("create_time");
+
         // 根据条件，查询图书分页数据
         IPage<Book> bookPage =
                 bookService.page(new Page<>(pageNum, pageSize), queryWrapper);

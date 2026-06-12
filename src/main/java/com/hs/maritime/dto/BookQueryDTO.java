@@ -10,7 +10,11 @@ public class BookQueryDTO {
     private String title;
     private String author;
     private String publisher;
-    private Integer categoryId;
+    private Integer category;
     private Integer status;
+
+    // 冗余图书查阅的关键词
+    private String keywords;
+    private String borrowStatus;
 
 }
