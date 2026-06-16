@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import javax.annotation.Resource;
 import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RequestMapping("/user")
 @Slf4j
@@ -144,5 +146,25 @@ public class UserController {
         userService.update(Wrappers.<User>update().set("status", UserStatusEnum.OFFED.getCode()).eq("id",userId));
         // 返回结果
         return Result.success();
+    }
+
+    /**
+     * 获取无读者证用户列表
+     * 说明：如果用户数量比较多，直接查询，如果比较多，建议：不可以查询所有,而是前端根据输入的内容，动态查询+分页，标签是el-autocomplete
+     * */
+    @GetMapping("/withoutCardUsers")
+    public Result<?> withoutCardUsers(){
+        // 获取无读者证的所有用户
+        List<User> withoutCardUserList = userService.getWithoutCardUsers();
+
+        // 转换类型
+        List<UserVO> userVOList = withoutCardUserList.stream().map(user -> {
+            UserVO userVO = new UserVO();
+            BeanUtils.copyProperties(user,userVO);
+            return userVO;
+        }).collect(Collectors.toList());
+
+        // 返回结果
+        return Result.success(userVOList);
     }
 }
