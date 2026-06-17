@@ -14,9 +14,12 @@ import com.hs.maritime.enums.ResultEnum;
 import com.hs.maritime.exceptions.MaritimeException;
 import com.hs.maritime.service.BookService;
 import com.hs.maritime.service.CategoryService;
+import com.hs.maritime.service.LibraryCardTypeService;
 import com.hs.maritime.vo.CategoryVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
@@ -107,6 +110,7 @@ public class CategoryController {
         category.setCreateTime(LocalDateTime.now());
         category.setUpdateTime(LocalDateTime.now());
 
+        // 新增读者证
         if(categoryService.save(category)){
             return Result.success();
         }
@@ -153,6 +157,7 @@ public class CategoryController {
     /**
      * 图书分类批量删除
      * */
+    @Transactional
     @DeleteMapping("/deleteBatch")
     public Result<?> deleteBatch(@RequestBody  List<Long> ids){
 

@@ -9,7 +9,9 @@ import com.hs.maritime.common.Result;
 import com.hs.maritime.entity.LibraryCard;
 import com.hs.maritime.entity.LibraryCardType;
 import com.hs.maritime.entity.User;
+import com.hs.maritime.exceptions.MaritimeException;
 import com.hs.maritime.service.LibraryCardService;
+import com.hs.maritime.service.LibraryCardTypeService;
 import com.hs.maritime.service.UserService;
 import com.hs.maritime.vo.LibraryCardTypeVO;
 import com.hs.maritime.vo.LibraryCardVO;
@@ -19,6 +21,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.Period;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,8 +32,10 @@ import java.util.stream.Collectors;
 public class LibraryCardController {
     @Resource
     private LibraryCardService libraryCardService;
-    @Autowired
+    @Resource
     private UserService userService;
+    @Autowired
+    private LibraryCardTypeService libraryCardTypeService;
 
     @GetMapping("/list")
     public Result<?> cardList() {
@@ -66,6 +73,8 @@ public class LibraryCardController {
         IPage<LibraryCardVO> cardVOPage = cardPage.convert(libraryCard -> {
             LibraryCardVO libraryCardVO = new LibraryCardVO();
             BeanUtils.copyProperties(libraryCard, libraryCardVO);
+            // 计算有效日期
+            libraryCardVO.setEffectiveAge(Period.between(libraryCardVO.getIssueDate(), libraryCardVO.getExpireDate()).getYears());
             return libraryCardVO;
         });
 
@@ -84,6 +93,18 @@ public class LibraryCardController {
         LibraryCard libraryCard = new LibraryCard();
         BeanUtils.copyProperties(libraryCardVO, libraryCard);
 
+        // 获取选择的读者证类型详情
+        LibraryCardType cardType = libraryCardTypeService.getById(libraryCardVO.getTypeId());
+        libraryCard.setTypeName(cardType.getName());
+
+        // 校验押金
+        if(cardType.getDepositAmount().compareTo(libraryCardVO.getActualDeposit())>0){
+            throw new MaritimeException(cardType.getName() + "类型读者证，押金不能低于"+ cardType.getDepositAmount());
+        }
+
+        // 计算过期时间
+        libraryCard.setExpireDate(LocalDate.now().plusYears(libraryCardVO.getEffectiveAge()));
+
         // 新增读者证类型
         if (libraryCardService.save(libraryCard)) {
             return Result.success();
@@ -99,6 +120,13 @@ public class LibraryCardController {
         // 转换对象
         LibraryCard libraryCard = new LibraryCard();
         BeanUtils.copyProperties(libraryCardVO, libraryCard);
+
+        // 获取选择的读者证类型详情
+        LibraryCardType cardType = libraryCardTypeService.getById(libraryCardVO.getTypeId());
+        libraryCard.setTypeName(cardType.getName());
+
+        // 计算过期时间
+        libraryCard.setExpireDate(LocalDate.now().plusYears(libraryCardVO.getEffectiveAge()));
 
         // 更新读者证类型
         if (libraryCardService.updateById(libraryCard)) {

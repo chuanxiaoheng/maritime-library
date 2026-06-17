@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 
@@ -23,8 +24,8 @@ public class LibraryCard {
     private BigDecimal actualDeposit;
     private BigDecimal totalFine;
     private Integer currentBorrowed;
-    private LocalDateTime issueDate;
-    private LocalDateTime  expireDate;
+    private LocalDate issueDate;
+    private LocalDate  expireDate;
     private Integer status;
     private Integer delFlag;
     private LocalDateTime createTime;

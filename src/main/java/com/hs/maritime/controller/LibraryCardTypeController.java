@@ -4,15 +4,20 @@ package com.hs.maritime.controller;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hs.maritime.common.PageResult;
 import com.hs.maritime.common.Result;
+import com.hs.maritime.entity.LibraryCard;
 import com.hs.maritime.entity.LibraryCardType;
+import com.hs.maritime.exceptions.MaritimeException;
 import com.hs.maritime.mapper.LibraryCardTypeMapper;
+import com.hs.maritime.service.LibraryCardService;
 import com.hs.maritime.service.LibraryCardTypeService;
 import com.hs.maritime.vo.LibraryCardTypeVO;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -28,8 +33,8 @@ public class LibraryCardTypeController {
 
     @Resource
     private LibraryCardTypeService libraryCardTypeService;
-    @Autowired
-    private LibraryCardTypeMapper libraryCardTypeMapper;
+    @Resource
+    private LibraryCardService libraryCardService;
 
     /**
      * 读者证类型列表
@@ -116,6 +121,10 @@ public class LibraryCardTypeController {
     public Result<?> deleteCardType(@PathVariable Long id) {
 
         // TODO 判断该类型是否存在读者证关系，存在不可以删除
+        List<LibraryCard> libraryCardList = libraryCardService.list(Wrappers.<LibraryCard>query().in("type_id", id));
+        if(!libraryCardList.isEmpty()){
+            throw new MaritimeException("该分类关联了读者证，请先删除该分类下面的读者证！");
+        }
 
         // 根据id，删除读者证类型
         if (libraryCardTypeService.removeById(id)) {
@@ -127,10 +136,15 @@ public class LibraryCardTypeController {
     /**
      * 批量删除读者证类型
      */
+    @Transactional
     @DeleteMapping("/deleteBatch")
     public Result<?> deleteBatchCardType(@RequestBody List<Long> ids) {
 
         // TODO 判断该类型是否存在关联读者证
+        List<LibraryCard> libraryCardList = libraryCardService.list(Wrappers.<LibraryCard>query().in("type_id", ids));
+        if(!libraryCardList.isEmpty()){
+            throw new MaritimeException("选中的部分分类关联了读者证，请先删除该分类下面的读者证！");
+        }
 
         // 根据id集合，批量删除图书
         if (libraryCardTypeService.removeByIds(ids)) {
