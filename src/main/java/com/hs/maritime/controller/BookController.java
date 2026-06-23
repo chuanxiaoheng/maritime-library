@@ -52,7 +52,7 @@ public class BookController {
         log.info("每页展示的数量：{}",pageSize);
         // 查询条件
         QueryWrapper<Book> queryWrapper = Wrappers.<Book>query()
-                .likeRight(StrUtil.isNotBlank(bookQueryDTO.getTitle()),"title",bookQueryDTO.getTitle())
+                .likeRight(StrUtil.isNotBlank(bookQueryDTO.getTitle()),"title",StrUtil.trim(bookQueryDTO.getTitle()))
                 .eq(StrUtil.isNotBlank(bookQueryDTO.getAuthor()),"author",bookQueryDTO.getAuthor())
                 .eq(StrUtil.isNotBlank(bookQueryDTO.getIsbn()),"isbn",bookQueryDTO.getIsbn())
                 .eq(StrUtil.isNotBlank(bookQueryDTO.getPublisher()),"publisher",bookQueryDTO.getPublisher())

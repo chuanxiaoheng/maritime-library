@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -28,7 +29,7 @@ public class Book {
     private Integer categoryId;
     private String location;
     private String description;
-    private Double price;
+    private BigDecimal price;
     private Integer totalCopies;
     private Integer availableCopies;
     private Integer borrowedCopies;

@@ -1,26 +1,30 @@
 package com.hs.maritime.controller;
 
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hs.maritime.common.Result;
-import com.hs.maritime.entity.User;
-import com.hs.maritime.entity.UserProfile;
+import com.hs.maritime.entity.*;
 import com.hs.maritime.enums.UserStatusEnum;
 import com.hs.maritime.exceptions.MaritimeException;
-import com.hs.maritime.service.FileService;
-import com.hs.maritime.service.UserProfileService;
-import com.hs.maritime.service.UserService;
+import com.hs.maritime.service.*;
 import com.hs.maritime.utils.JWTUtils;
 import com.hs.maritime.utils.MD5Utils;
+import com.hs.maritime.vo.BorrowRecordVO;
+import com.hs.maritime.vo.BorrowUserVO;
 import com.hs.maritime.vo.UserVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import javax.annotation.Resource;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RequestMapping("/user")
@@ -37,8 +41,22 @@ public class UserController {
     @Resource
     private UserProfileService userProfileService;
 
+    @Resource
+    private LibraryCardService libraryCardService;
+
+    @Resource
+    private RoleService roleService;
+
+    @Resource
+    private LibraryCardTypeService libraryCardTypeService;
+
+    @Resource
+    private BorrowRecordService borrowRecordService;
+
     @Value("${file.avatar-dir}")
     private String avatarDir;
+
+
 
     /**
      * 修改用户的基本信息
@@ -167,4 +185,101 @@ public class UserController {
         // 返回结果
         return Result.success(userVOList);
     }
+
+    /***
+     * 根据关键词，获取借阅用户详情
+     */
+    @GetMapping("/borrowUser")
+    public Result<?> getBorrowUser(@RequestParam String keywords){
+        // 根据关键词，查询借阅用户
+        User user = userService.getOne(Wrappers.<User>query().eq("username",keywords));
+        // 读者证对象
+        LibraryCard libraryCard = null;
+        // 如果用户名不存在(输入的是读者证号)
+        if(user == null){
+            // 根据关键词查询读者证
+            libraryCard = libraryCardService.getOne(Wrappers.<LibraryCard>query().eq("card_no",keywords));
+            // 读者证存在，可以获取对应的借阅用户
+            if(libraryCard != null){
+                user = userService.getById(libraryCard.getUserId());
+                // 用户不存在，返回空
+                if(user == null){
+                    return Result.success(null);
+                }
+            }else{
+                throw new MaritimeException("该用户名或读者证不存在，无法借阅图书");
+            }
+
+        }else{
+            libraryCard = libraryCardService.getOne(Wrappers.<LibraryCard>query().eq("user_id",user.getId()));
+            // 读者证不存在,提示无法借阅图书
+            if(libraryCard == null){
+                throw new MaritimeException("用户无读者证或读者证不存在，无法借阅图书");
+            }
+        }
+
+        // 添加借阅用户信息
+        BorrowUserVO borrowUserVO = new BorrowUserVO();
+        BeanUtils.copyProperties(user,borrowUserVO);
+
+        // 添加读者证信息
+        borrowUserVO.setCardNo(libraryCard.getCardNo());
+        borrowUserVO.setCardType(libraryCard.getTypeName());
+        borrowUserVO.setCardStatus(libraryCard.getStatus());
+
+        // 添加角色信息
+        Role role = roleService.getById(user.getRoleId());
+        borrowUserVO.setRoleName(role.getRoleName());
+
+        // 添加借阅数量和天数
+        LibraryCardType cardType = libraryCardTypeService.getById(libraryCard.getTypeId());
+        borrowUserVO.setMaxBorrowBooks(cardType.getMaxBooks());
+        borrowUserVO.setMaxBorrowDays(cardType.getMaxDays());
+
+        // 添加借阅数据
+        Map<String,Object> borrowStatsMap = borrowRecordService.getUserBorrowStats(borrowUserVO.getId());
+
+        borrowUserVO.setBorrowingCount(Integer.parseInt(borrowStatsMap.get("borrowingCount").toString()));
+        borrowUserVO.setReturnedCount(Integer.parseInt(borrowStatsMap.get("returnedCount").toString()));
+        borrowUserVO.setOverdueCount(Integer.parseInt(borrowStatsMap.get("overdueCount").toString()));
+        borrowUserVO.setCompensateCount(Integer.parseInt(borrowStatsMap.get("compensateCount").toString()));
+
+        // 获取用户最近借阅图书记录
+        QueryWrapper<BorrowRecord> queryWrapper = Wrappers.<BorrowRecord>query()
+                .eq("user_id",borrowUserVO.getId())
+                .in("status",0,3,4)
+                .orderByDesc("create_time");
+        // 根据条件，查询记录
+        IPage<BorrowRecord> borrowRecordPage = borrowRecordService.page(new Page<>(1,10),queryWrapper);
+        // 结果数据转换
+        IPage<BorrowRecordVO> borrowRecordVOPage = borrowRecordPage.convert(borrowRecord -> {
+            BorrowRecordVO borrowRecordVO = new BorrowRecordVO();
+            BeanUtils.copyProperties(borrowRecord,borrowRecordVO);
+            return borrowRecordVO;
+        });
+        // 添加最近借阅图书历史
+        borrowUserVO.setBorrowRecords(borrowRecordVOPage.getRecords());
+
+        // 返回借阅用户详情
+        return Result.success(borrowUserVO);
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -2,6 +2,7 @@ package com.hs.maritime.vo;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -15,7 +16,7 @@ public class BookVO {
     private Integer categoryId;
     private String location;
     private String description;
-    private Double price;
+    private BigDecimal price;
     private Integer totalCopies;
     private Integer availableCopies;
     private Integer borrowedCopies;
