@@ -207,14 +207,14 @@ public class UserController {
                     return Result.success(null);
                 }
             }else{
-                throw new MaritimeException("该用户名或读者证不存在，无法借阅图书");
+                throw new MaritimeException("该用户名或读者证不存在！");
             }
 
         }else{
             libraryCard = libraryCardService.getOne(Wrappers.<LibraryCard>query().eq("user_id",user.getId()));
             // 读者证不存在,提示无法借阅图书
             if(libraryCard == null){
-                throw new MaritimeException("用户无读者证或读者证不存在，无法借阅图书");
+                throw new MaritimeException("用户无读者证或读者证不存在！");
             }
         }
 

@@ -60,8 +60,7 @@ public class BookController {
                 .eq(bookQueryDTO.getStatus() != null,"status",bookQueryDTO.getStatus())
                 .orderByDesc("create_time");
         // 根据条件，查询图书分页数据
-        IPage<Book> bookPage =
-                bookService.page(new Page<>(pageNum, pageSize), queryWrapper);
+        IPage<Book> bookPage = bookService.page(new Page<>(pageNum, pageSize), queryWrapper);
 
         // 自定义sql语句，图书表关联数据
         // 查询分类数据，程序内处理

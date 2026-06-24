@@ -12,7 +12,7 @@ import java.util.List;
 @Data
 public class BorrowUserVO {
     private Long id;
-    private String username;
+    private String userName;
     private String nickname;
     private String phone;
     private String email;
