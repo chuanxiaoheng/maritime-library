@@ -3,7 +3,6 @@ package com.hs.maritime.controller;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -17,15 +16,14 @@ import com.hs.maritime.exceptions.MaritimeException;
 import com.hs.maritime.service.*;
 import com.hs.maritime.utils.JWTUtils;
 import com.hs.maritime.vo.BorrowRecordVO;
-
-import com.hs.maritime.vo.CategoryVO;
-import org.springframework.beans.BeanUtils;
+import cn.hutool.core.bean.BeanUtil;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 /**
  * 借阅记录操作入口
@@ -56,10 +54,10 @@ public class BorrowRecordController {
     public Result<?> add(@RequestBody List<BorrowRecordVO> borrowRecordVOList,
                          @RequestHeader("Auth-Token")String authToken){
         // 遍历
-        borrowRecordVOList.stream().forEach(borrowRecordVO -> {
+        borrowRecordVOList.forEach(borrowRecordVO -> {
             // 转换对象
             BorrowRecord borrowRecord = new BorrowRecord();
-            BeanUtils.copyProperties(borrowRecordVO,borrowRecord);
+            BeanUtil.copyProperties(borrowRecordVO,borrowRecord);
 
             // 根据借阅图书编号来获取图书详情
             Book book = bookService.getById(borrowRecord.getBookId());
@@ -73,9 +71,11 @@ public class BorrowRecordController {
             borrowRecord.setBookName(book.getTitle());
             borrowRecord.setBookPrice(book.getPrice());
             borrowRecord.setBookIsbn(book.getIsbn());
+
             // 根据用户，查询读者证
             LibraryCard libraryCard = libraryCardService.getOne(Wrappers.<LibraryCard>query().eq("user_id",borrowRecord.getUserId()));
             borrowRecord.setCardId(libraryCard.getId());
+            borrowRecord.setUserName(libraryCard.getUsername());
 
             // 借阅时间
             borrowRecord.setBorrowTime(LocalDate.now());
@@ -100,6 +100,7 @@ public class BorrowRecordController {
             bookCopyService.update(Wrappers.<BookCopy>update()
                     .set("status",2)
                     .set("borrow_count",bookCopy.getBorrowCount() + 1)
+                    .set("last_borrowed_time", LocalDateTime.now())
                     .eq("id",bookCopy.getId())
             );
             // 更新图书数据
@@ -130,7 +131,7 @@ public class BorrowRecordController {
         // 转成VO
         IPage<BorrowRecordVO> borrowRecordVOPage = borrowRecordPage.convert( borrowRecord-> {
             BorrowRecordVO borrowRecordVO = new BorrowRecordVO();
-            BeanUtils.copyProperties(borrowRecord, borrowRecordVO);
+            BeanUtil.copyProperties(borrowRecord, borrowRecordVO);
             return borrowRecordVO;
         });
 
@@ -156,8 +157,56 @@ public class BorrowRecordController {
         if(borrowRecordService.update(updateWrapper)){
             return Result.success();
         }
-
         return Result.fail();
+    }
+    /**
+     * 归还图书
+     * */
+    @Transactional
+    @PostMapping("/return")
+    public Result<?> returnBooks(@RequestBody List<BorrowRecordVO> borrowRecordVOList){
+        // 遍历归还图书集合
+        borrowRecordVOList.forEach(borrowRecordVO -> {
+            // 查询归还的记录
+            BorrowRecord borrowRecord = borrowRecordService.getById(borrowRecordVO.getId());
+
+            // 设置归还数据
+            borrowRecord.setReturnTime(LocalDate.now());
+            borrowRecord.setRemark(borrowRecordVO.getRemark());
+
+            // 借阅中图书，设置为已归还
+            if(borrowRecord.getStatus().equals(0)){
+                borrowRecord.setStatus(1);
+                // 更新图书副本的状态
+                bookCopyService.lambdaUpdate()
+                        .set(BookCopy::getStatus,1)
+                        .set(BookCopy::getLastReturnedTime,LocalDateTime.now())
+                        .eq(BookCopy::getId,borrowRecord.getBookCopyId())
+                        .update();
+
+                // 更新图书可借副本数量，已借副本数
+                LambdaUpdateWrapper<Book> bookUpdateWrapper = new LambdaUpdateWrapper<>();
+                bookUpdateWrapper.setSql("available_copies = available_copies + 1,borrowed_copies = borrowed_copies - 1");
+                bookUpdateWrapper.eq(Book::getId,borrowRecord.getBookId());
+                bookService.update(bookUpdateWrapper);
+
+                // 判断逾期(实际归还时间，在应归还时间后)
+                if(borrowRecord.getReturnTime().isAfter(borrowRecord.getDueTime())){
+                    // 计算逾期天数
+                    long overdueDays = ChronoUnit.DAYS.between(borrowRecord.getDueTime(),borrowRecord.getReturnTime());
+                    borrowRecord.setOverdueDays((int) overdueDays);
+                    borrowRecord.setStatus(1);
+
+                    // TODO 再次根据读者证类型设置的费率，重新计算罚金，判断和前端提交是否一致，如果不一致以数据库为准
+                    borrowRecord.setOverdueFine(borrowRecordVO.getOverdueFine());
+                }
+            }
+
+            // 更新借阅记录
+            borrowRecordService.updateById(borrowRecord);
+
+        });
+        return Result.success();
     }
 
 }

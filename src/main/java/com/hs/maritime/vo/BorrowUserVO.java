@@ -2,12 +2,11 @@ package com.hs.maritime.vo;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * Created On : 2026/5/12.
- * Author : chuanheng
- * Description: 借阅用户VO类
+ * 借阅用户VO类
  */
 @Data
 public class BorrowUserVO {
@@ -45,6 +44,8 @@ public class BorrowUserVO {
     private int overdueCount;
     // 赔偿数量
     private int compensateCount;
+    // 逾期费用
+    private BigDecimal overdueFee;
     // 最近借阅图书记录
     private List<BorrowRecordVO> borrowRecords;
 

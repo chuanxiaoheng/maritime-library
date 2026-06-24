@@ -10,9 +10,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("borrow_records")
 public class BorrowRecordVO {
-    @TableId(type = IdType.AUTO)
     private Long id;
     private String recordNo;
     private Integer cardId;

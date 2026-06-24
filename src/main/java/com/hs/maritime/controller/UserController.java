@@ -226,19 +226,20 @@ public class UserController {
         borrowUserVO.setCardNo(libraryCard.getCardNo());
         borrowUserVO.setCardType(libraryCard.getTypeName());
         borrowUserVO.setCardStatus(libraryCard.getStatus());
+        borrowUserVO.setUserName(libraryCard.getUsername());
 
         // 添加角色信息
         Role role = roleService.getById(user.getRoleId());
         borrowUserVO.setRoleName(role.getRoleName());
 
-        // 添加借阅数量和天数
+        // 添加借阅数量和天数，押金
         LibraryCardType cardType = libraryCardTypeService.getById(libraryCard.getTypeId());
         borrowUserVO.setMaxBorrowBooks(cardType.getMaxBooks());
         borrowUserVO.setMaxBorrowDays(cardType.getMaxDays());
+        borrowUserVO.setOverdueFee(cardType.getOverdueFee());
 
         // 添加借阅数据
         Map<String,Object> borrowStatsMap = borrowRecordService.getUserBorrowStats(borrowUserVO.getId());
-
         borrowUserVO.setBorrowingCount(Integer.parseInt(borrowStatsMap.get("borrowingCount").toString()));
         borrowUserVO.setReturnedCount(Integer.parseInt(borrowStatsMap.get("returnedCount").toString()));
         borrowUserVO.setOverdueCount(Integer.parseInt(borrowStatsMap.get("overdueCount").toString()));
