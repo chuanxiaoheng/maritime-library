@@ -1,6 +1,5 @@
 package com.hs.maritime.config;
 
-
 import com.hs.maritime.interceptor.JWTInterceptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.format.FormatterRegistry;

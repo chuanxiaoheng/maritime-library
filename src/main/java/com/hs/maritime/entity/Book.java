@@ -37,5 +37,5 @@ public class Book {
     private Integer status;
     private String cover;
     private LocalDateTime createTime;
-    private LocalDateTime update_time;
+    private LocalDateTime updateTime;
 }
